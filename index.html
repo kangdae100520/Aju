@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="ko" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart AI Crop Studio</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen p-4 flex flex-col items-center">
+    <div class="max-w-4xl w-full bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-2xl flex flex-col gap-6">
+        <h1 class="text-xl font-bold text-indigo-400 flex items-center gap-2">
+            <i class="fa-solid fa-crop-simple"></i> Smart AI Crop & Vision
+        </h1>
+        <p class="text-xs text-slate-400">Vercel 서버리스 함수(/api/generate)와 연동되어 AI로 주요 영역을 감지하고 안전하게 분석 및 저장합니다.</p>
+        
+        <div class="flex flex-col md:flex-row gap-6">
+            <div class="flex-1 flex flex-col gap-3">
+                <input type="file" id="img-input" accept="image/*" class="text-xs text-slate-300">
+                <div class="h-64 bg-slate-950 rounded-xl overflow-hidden border border-slate-800 flex items-center justify-center">
+                    <img id="cropper-target" src="" class="max-h-full hidden">
+                </div>
+                <button onclick="runAnalysis()" id="submit-btn" class="bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold py-2.5 rounded-xl transition-all">
+                    선택 영역 AI 분석하기
+                </button>
+            </div>
+            
+            <div class="flex-1 bg-slate-950 border border-slate-800 rounded-xl p-4 text-xs leading-relaxed text-slate-200 overflow-y-auto max-h-80" id="result-box">
+                분석 결과가 여기에 표시됩니다.
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let cropper = null;
+        const imgInput = document.getElementById('img-input');
+        const imgTarget = document.getElementById('cropper-target');
+
+        imgInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (ev) => {
+                imgTarget.src = ev.target.result;
+                imgTarget.classList.remove('hidden');
+                if (cropper) cropper.destroy();
+                cropper = new Cropper(imgTarget, { aspectRatio: NaN, viewMode: 1 });
+            };
+            reader.readAsDataURL(file);
+        });
+
+        async function runAnalysis() {
+            if (!cropper) { alert('이미지를 선택해주세요.'); return; }
+            const canvas = cropper.getCroppedCanvas();
+            const base64Data = canvas.toDataURL('image/png').split(',')[1];
+            
+            const resultBox = document.getElementById('result-box');
+            resultBox.innerHTML = '분석 중...';
+
+            try {
+                const res = await fetch('/api/generate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        prompt: '이미지의 주요 텍스트 및 특징을 분석해 정리해 주세요.',
+                        imageBase64: base64Data,
+                        mimeType: 'image/png'
+                    })
+                });
+                const data = await res.json();
+                const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '결과를 불러올 수 없습니다.';
+                resultBox.innerHTML = typeof marked !== 'undefined' ? marked.parse(text) : text;
+            } catch (err) {
+                resultBox.innerHTML = '오류 발생: ' + err.message;
+            }
+        }
+    </script>
+</body>
+</html>

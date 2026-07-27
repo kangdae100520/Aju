@@ -1,0 +1,11 @@
+{
+  "name": "smart-ai-crop-studio",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Smart AI Image Crop & Vision Extractor deployable on Vercel",
+  "scripts": {
+    "dev": "vercel dev",
+    "deploy": "vercel --prod"
+  },
+  "dependencies": {}
+}
